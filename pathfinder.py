@@ -1,150 +1,172 @@
 import heapq
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable
+
 from models import Graph, Zone
 
 
-def _dijkstra_dists(graph: Graph, start: Zone) -> Tuple[Dict[Zone, float], Dict[Zone, float], Dict[Zone, Optional[Zone]]]:
-    """
-    Run Dijkstra from `start` without any capacity constraints.
+class CapacityLedger:
+    def __init__(self) -> None:
+        self.zone_remaining: Dict[Zone, float] = {}
+        self.link_remaining: Dict[frozenset, float] = {}
 
-    Returns
-    -------
-    dist  : dist[v]  = minimum cost of going from start to v
-            (paying destination zone costs; start itself is not paid for)
-    score : score[v] = secondary score — number of non-priority hops from start to v
-            (lower = more priority zones used = preferred)
-    prev  : prev[v]  = predecessor of v on the cheapest path from start
+    def build(self, graph: Graph) -> None:
+        for zone in graph.zones.values():
+            if zone.is_start or zone.is_end:
+                self.zone_remaining[zone] = float("inf")
+            else:
+                self.zone_remaining[zone] = zone.max_drones
 
-    Blocked zones (cost = None) are never visited.
-    """
-    INF = float("inf")
-    dist: Dict[Zone, float] = {z: INF for z in graph.zones.values()}
-    score: Dict[Zone, float] = {z: INF for z in graph.zones.values()}
-    prev: Dict[Zone, Optional[Zone]] = {z: None for z in graph.zones.values()}
-    visited: Dict[Zone, bool] = {z: False for z in graph.zones.values()}
+        for zone in graph.zones.values():
+            for connection in graph.adjacency[zone]:
+                key = frozenset({zone.name, connection.destination.name})
+                if key not in self.link_remaining:
+                    self.link_remaining[key] = connection.max_link_capacity
 
-    dist[start] = 0
-    score[start] = 0
-    heap = [(0, 0, start.name, start)]
+    def can_traverse(self, zone_a: Zone, zone_b: Zone) -> bool:
+        zone_ok = self.zone_remaining[zone_b] > 0
+        key = frozenset({zone_a.name, zone_b.name})
+        link_ok = self.link_remaining[key] > 0
+        return zone_ok and link_ok
 
-    while heap:
-        d, s, _, u = heapq.heappop(heap)
+    def path_bottleneck(self, path: List[Zone]) -> float:
+        smallest = float("inf")
+        for i in range(len(path) - 1):
+            zone = path[i]
+            if not (zone.is_start or zone.is_end):
+                smallest = min(smallest, self.zone_remaining[zone])
+            key = frozenset({path[i].name, path[i + 1].name})
+            smallest = min(smallest, self.link_remaining[key])
+        return smallest
+
+    def consume(self, path: List[Zone], amount: float) -> None:
+        for i in range(len(path) - 1):
+            zone = path[i]
+            if not (zone.is_start or zone.is_end):
+                self.zone_remaining[zone] -= amount
+            key = frozenset({path[i].name, path[i + 1].name})
+            self.link_remaining[key] -= amount
+
+
+def dijkstra(
+    graph: Graph,
+    can_traverse: Optional[Callable[[Zone, Zone], bool]] = None,
+    start_zone: Optional[Zone] = None,
+) -> Optional[Tuple[List[Zone], float]]:
+    origin = start_zone if start_zone is not None else graph.start
+
+    dist: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
+    priority_score: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
+    previous: Dict[Zone, Optional[Zone]] = {zone: None for zone in graph.zones.values()}
+    visited: Dict[Zone, bool] = {zone: False for zone in graph.zones.values()}
+
+    dist[origin] = 0
+    priority_score[origin] = 0
+    pq = [(0, 0, origin.name, origin)]
+
+    while pq:
+        d, p, _, u = heapq.heappop(pq)
         if visited[u]:
             continue
         visited[u] = True
+        if u is graph.end:
+            break
 
         for connection in graph.adjacency[u]:
             v = connection.destination
-            if v.cost is None or visited[v]:
+            weight = v.cost
+            if weight is None:
                 continue
-            new_cost = d + v.cost
-            new_score = s + (0 if v.type == "priority" else 1)
-            if (new_cost, new_score) < (dist[v], score[v]):
+            if visited[v]:
+                continue
+            if can_traverse is not None and not can_traverse(u, v):
+                continue
+
+            new_cost = d + weight
+            new_score = p + (0 if v.type == "priority" else 1)
+            if (new_cost, new_score) < (dist[v], priority_score[v]):
                 dist[v] = new_cost
-                score[v] = new_score
-                prev[v] = u
-                heapq.heappush(heap, (new_cost, new_score, v.name, v))
-
-    return dist, score, prev
-
-
-def dijkstra(graph: Graph, start: Optional[Zone] = None) -> List[Zone]:
-    """
-    Find the shortest path from `start` (default: graph.start) to graph.end.
-
-    Cost model
-    ----------
-    - Blocked zones (cost = None) are never visited.
-    - Normal / priority zones: cost 1 per zone.
-    - Restricted zones: cost 2 per zone (drone spends an extra turn to cross).
-    - Priority zones are preferred when two paths have equal total cost (lower
-      secondary score = more priority zones used).
-
-    Returns
-    -------
-    List[Zone] from start to end (inclusive).
-
-    Raises
-    ------
-    ValueError if no path exists.
-    """
-    origin: Zone = start if start is not None else graph.start
-    dist, _, prev = _dijkstra_dists(graph, origin)
+                priority_score[v] = new_score
+                previous[v] = u
+                heapq.heappush(pq, (new_cost, new_score, v.name, v))
 
     if dist[graph.end] == float("inf"):
-        raise ValueError("No path from start to end exists.")
+        return None
+
     path: List[Zone] = []
     current: Optional[Zone] = graph.end
     while current is not None:
         path.append(current)
-        current = prev[current]
+        current = previous[current]
     path.reverse()
-    return path
+
+    return path, dist[graph.end]
 
 
 class Pathfinder:
-    """
-    Per-drone next-step advisor with automatic load balancing.
-
-    Core idea: reverse Dijkstra
-    ---------------------------
-    We run Dijkstra once backward from graph.end (treated as the origin).
-    The result `_rev_dist[v]` is the cost of travelling from zone v to the
-    end hub (i.e. it equals the sum of zone costs v, v+1, …, end along the
-    cheapest path in reverse, which equals the forward path cost).
-
-    For any drone at zone Z, we want the neighbour V that minimises:
-        total forward cost through V
-            = V.cost + (cost from V onward to end)
-
-    It can be shown that comparing  _rev_dist[V]  is equivalent to comparing
-    this total cost (the end hub's own cost is a constant addend).
-
-    Load balancing at equal-cost branch points
-    ------------------------------------------
-    When two or more neighbours share the same (rev_dist, rev_score) — meaning
-    they lead to the end with equal total cost — we pick the LEAST LOADED one:
-
-        load(V) = V.occupancy + V.in_transit_count
-
-    This spreads drones across parallel routes of equal quality (e.g. the three
-    independent restricted-zone chains in the challenger map) without ever
-    routing through a longer detour.  For single-path segments the behaviour is
-    identical to a static shortest path.
-    """
-
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
-        rev_dist, rev_score, _ = _dijkstra_dists(graph, graph.end)
-        self._rev_dist: Dict[Zone, float] = rev_dist
-        self._rev_score: Dict[Zone, float] = rev_score
 
     def find_path(self) -> List[Zone]:
-        return dijkstra(self.graph)
+        result = dijkstra(self.graph)
+        if result is None:
+            raise ValueError("there is no path from the start to the end")
+        path, _ = result
+        return path
 
-    def find_next_step(self, from_zone: Zone) -> Optional[Zone]:
-        if from_zone is self.graph.end:
-            return None
-        INF = float("inf")
-        best_metric: Tuple[float, float] = (INF, INF)
-        candidates: List[Zone] = []
-        for connection in self.graph.adjacency[from_zone]:
-            v = connection.destination
-            if v.cost is None:
-                continue
-            rev_d = self._rev_dist.get(v, INF)
-            rev_s = self._rev_score.get(v, INF)
-            if rev_d == INF:
-                continue
-            metric = (rev_d, rev_s)
-            if metric < best_metric:
-                best_metric = metric
-                candidates = [v]
-            elif metric == best_metric:
-                candidates.append(v)
-        if not candidates:
-            return None
-        return min(
-            candidates,
-            key=lambda z: (z.occupancy + z.in_transit_count, z.name),
-        )
+    def build_schedule(self, path: List[Zone]) -> List[str]:
+        return [zone.name for zone in path[1:]]
+
+
+class RoutePlanner:
+    def discover_paths(
+        self,
+        graph: Graph,
+        nb_drones: int,
+        max_iterations: int = 50,
+    ) -> List[Tuple[List[Zone], float, float]]:
+        ledger = CapacityLedger()
+        ledger.build(graph)
+
+        found_paths: List[Tuple[List[Zone], float, float]] = []
+        total_capacity = 0.0
+        iterations = 0
+
+        while iterations < max_iterations:
+            iterations += 1
+            result = dijkstra(graph, can_traverse=ledger.can_traverse)
+
+            if result is None:
+                break
+
+            path, cost = result
+            bottleneck = ledger.path_bottleneck(path)
+            ledger.consume(path, bottleneck)
+
+            found_paths.append((path, cost, bottleneck))
+            total_capacity += bottleneck
+
+            if total_capacity >= nb_drones:
+                break
+
+        if not found_paths:
+            raise ValueError("no route exists between start and end")
+
+        return found_paths
+
+    def assign_drones(self, found_paths, nb_drones: int) -> List[List[Zone]]:
+        sorted_paths = sorted(found_paths, key=lambda entry: entry[1])  # cheapest first
+        total_capacity = sum(bottleneck for _, _, bottleneck in sorted_paths)
+
+        quotas = [int(nb_drones * bottleneck / total_capacity) for _, _, bottleneck in sorted_paths]
+        remainder = nb_drones - sum(quotas)
+        i = 0
+        while remainder > 0:
+            quotas[i % len(quotas)] += 1
+            remainder -= 1
+            i += 1
+
+        assignments: List[List[Zone]] = []
+        for (path, _, _), quota in zip(sorted_paths, quotas):
+            for _ in range(quota):
+                assignments.append(list(path))   # fresh list per drone — never share one
+        return assignments

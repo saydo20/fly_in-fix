@@ -1,7 +1,7 @@
 import sys
 
 from parsing import Parser, ParseError
-from simulation import Simulation, SimulationError
+from simulation import Simulation
 
 
 def main() -> None:
@@ -14,5 +14,5 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (ParseError, ValueError, SimulationError) as error:
+    except (ParseError, ValueError) as error:
         print(f"error : {error}")

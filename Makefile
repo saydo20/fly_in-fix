@@ -1,5 +1,5 @@
 PYTHON = python3
-MAP = maps/hard/02_capacity_hell.txt
+MAP = maps/challenger/01_the_impossible_dream.txt
 
 run:
 	@echo "========================================"
