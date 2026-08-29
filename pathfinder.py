@@ -1,6 +1,5 @@
 import heapq
 from typing import Dict, List, Optional, Tuple, Callable
-
 from models import Graph, Zone
 
 
@@ -24,6 +23,7 @@ class CapacityLedger:
 
     def can_traverse(self, zone_a: Zone, zone_b: Zone) -> bool:
         zone_ok = self.zone_remaining[zone_b] > 0
+
         key = frozenset({zone_a.name, zone_b.name})
         link_ok = self.link_remaining[key] > 0
         return zone_ok and link_ok
@@ -43,15 +43,11 @@ class CapacityLedger:
             zone = path[i]
             if not (zone.is_start or zone.is_end):
                 self.zone_remaining[zone] -= amount
-            key = frozenset({path[i].name, path[i + 1].name})
+            key = frozenset({path[i].name, path[i + 1].name}) 
             self.link_remaining[key] -= amount
 
 
-def dijkstra(
-    graph: Graph,
-    can_traverse: Optional[Callable[[Zone, Zone], bool]] = None,
-    start_zone: Optional[Zone] = None,
-) -> Optional[Tuple[List[Zone], float]]:
+def dijkstra(graph: Graph, can_traverse: Optional[Callable[[Zone, Zone], bool]] = None, start_zone: Optional[Zone] = None) -> Optional[Tuple[List[Zone], float]]:
     origin = start_zone if start_zone is not None else graph.start
 
     dist: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
@@ -118,12 +114,7 @@ class Pathfinder:
 
 
 class RoutePlanner:
-    def discover_paths(
-        self,
-        graph: Graph,
-        nb_drones: int,
-        max_iterations: int = 50,
-    ) -> List[Tuple[List[Zone], float, float]]:
+    def discover_paths(self, graph: Graph, nb_drones: int) -> List[Tuple[List[Zone], float, float]]:
         ledger = CapacityLedger()
         ledger.build(graph)
 
@@ -131,7 +122,7 @@ class RoutePlanner:
         total_capacity = 0.0
         iterations = 0
 
-        while iterations < max_iterations:
+        while True:
             iterations += 1
             result = dijkstra(graph, can_traverse=ledger.can_traverse)
 
@@ -154,8 +145,10 @@ class RoutePlanner:
         return found_paths
 
     def assign_drones(self, found_paths, nb_drones: int) -> List[List[Zone]]:
-        sorted_paths = sorted(found_paths, key=lambda entry: entry[1])  # cheapest first
+        sorted_paths = sorted(found_paths, key=lambda entry: entry[1])
         total_capacity = sum(bottleneck for _, _, bottleneck in sorted_paths)
+        if total_capacity <= 0:
+            raise ValueError("no capacity available")
 
         quotas = [int(nb_drones * bottleneck / total_capacity) for _, _, bottleneck in sorted_paths]
         remainder = nb_drones - sum(quotas)
@@ -168,5 +161,5 @@ class RoutePlanner:
         assignments: List[List[Zone]] = []
         for (path, _, _), quota in zip(sorted_paths, quotas):
             for _ in range(quota):
-                assignments.append(list(path))   # fresh list per drone — never share one
+                assignments.append(list(path))
         return assignments
