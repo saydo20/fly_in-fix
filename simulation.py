@@ -1,8 +1,6 @@
 from typing import List, Set
 from models import Graph, Drone
-from pathfinder import RoutePlanner, dijkstra
-
-STUCK_THRESHOLD = 1
+from pathfinder import RoutePlanner
 
 
 class Simulation:
@@ -15,7 +13,8 @@ class Simulation:
         assignments = planner.assign_drones(found_paths, nb_drones)
 
         self.drones: List[Drone] = [
-            Drone(f"D{i + 1}", path) for i, path in enumerate(assignments)
+            Drone(f"D{i + 1}", path)
+            for i, path in enumerate(assignments)
         ]
 
     def run(self) -> List[str]:
@@ -39,16 +38,10 @@ class Simulation:
                 if drone.delivered or not drone.in_transit:
                     continue
 
-                from_zone = drone.transit_from
                 to_zone = drone.transit_to
-                if from_zone is None or to_zone is None:
-                    continue
 
-                connection = self.graph.get_connection(from_zone, to_zone)
-                connection_revers = self.graph.get_connection(to_zone, from_zone)
-                connection.occupancy += 1
-                connection_revers.occupancy += 1
-                connection_list.extend([connection, connection_revers])
+                if to_zone is None:
+                    continue
 
                 to_zone.in_transit_count -= 1
                 if not to_zone.is_end:
@@ -68,22 +61,7 @@ class Simulation:
                     drone.delivered = True
 
             for drone in self.drones:
-                if drone.delivered or drone.in_transit or drone.id in moved_this_turn:
-                    continue
-                if drone.turns_waited < STUCK_THRESHOLD:
-                    continue
-
-                result = dijkstra(
-                    self.graph,
-                    can_traverse=self.graph.can_move,
-                    start_zone=drone.current_zone,
-                )
-                if result is not None:
-                    new_path, _ = result
-                    drone.reroute(new_path)
-
-            for drone in self.drones:
-                if drone.delivered or drone.in_transit or drone.id in moved_this_turn:
+                if (drone.delivered or drone.in_transit or drone.id in moved_this_turn):
                     continue
 
                 if drone.step_index + 1 >= len(drone.path):
@@ -125,8 +103,8 @@ class Simulation:
                 else:
                     drone.turns_waited += 1
 
-            for c in connection_list:
-                c.occupancy = 0
+            for connection in connection_list:
+                connection.occupancy = 0
 
             if moves:
                 lines.append(" ".join(moves))

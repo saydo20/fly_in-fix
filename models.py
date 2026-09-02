@@ -42,6 +42,10 @@ class Zone:
     def has_capacity(self) -> bool:
         if self.max_drones is None:
             return True
+
+        if self.type == "restricted":
+            return self.in_transit_count < self.max_drones
+
         return (self.occupancy + self.in_transit_count) < self.max_drones
 
     def __repr__(self) -> str:
