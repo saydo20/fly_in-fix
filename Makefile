@@ -1,5 +1,5 @@
 PYTHON = python3
-MAP = maps/easy/03_basic_capacity.txt
+MAP = maps/easy/01_linear_path.txt
 
 run:
 	@echo "========================================"

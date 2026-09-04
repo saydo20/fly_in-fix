@@ -34,8 +34,9 @@ class CapacityLedger:
             zone = path[i]
             if not (zone.is_start or zone.is_end):
                 smallest = min(smallest, self.zone_remaining[zone])
-            key = frozenset({path[i].name, path[i + 1].name})
-            smallest = min(smallest, self.link_remaining[key])
+                key = frozenset({path[i].name, path[i + 1].name})
+                smallest = min(smallest, self.link_remaining[key])
+        print(smallest)
         return smallest
 
     def consume(self, path: List[Zone], amount: float) -> None:
@@ -43,8 +44,8 @@ class CapacityLedger:
             zone = path[i]
             if not (zone.is_start or zone.is_end):
                 self.zone_remaining[zone] -= amount
-            key = frozenset({path[i].name, path[i + 1].name}) 
-            self.link_remaining[key] -= amount
+                key = frozenset({path[i].name, path[i + 1].name}) 
+                self.link_remaining[key] -= amount
 
 
 def dijkstra(graph: Graph, can_traverse: Optional[Callable[[Zone, Zone], bool]] = None, start_zone: Optional[Zone] = None) -> Optional[Tuple[List[Zone], float]]:
@@ -147,19 +148,27 @@ class RoutePlanner:
     def assign_drones(self, found_paths, nb_drones: int) -> List[List[Zone]]:
         sorted_paths = sorted(found_paths, key=lambda entry: entry[1])
         total_capacity = sum(bottleneck for _, _, bottleneck in sorted_paths)
+        
         if total_capacity <= 0:
             raise ValueError("no capacity available")
-
+            
         quotas = [int(nb_drones * bottleneck / total_capacity) for _, _, bottleneck in sorted_paths]
         remainder = nb_drones - sum(quotas)
+        
         i = 0
         while remainder > 0:
             quotas[i % len(quotas)] += 1
             remainder -= 1
             i += 1
-
+            
         assignments: List[List[Zone]] = []
-        for (path, _, _), quota in zip(sorted_paths, quotas):
-            for _ in range(quota):
-                assignments.append(list(path))
+        quotas_left = quotas.copy()
+        
+        # Interleave (Round-Robin) the path assignments to prevent bottleneck congestion
+        while len(assignments) < nb_drones:
+            for idx, (path, _, _) in enumerate(sorted_paths):
+                if quotas_left[idx] > 0:
+                    assignments.append(list(path))
+                    quotas_left[idx] -= 1
+                    
         return assignments
