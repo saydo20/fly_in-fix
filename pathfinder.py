@@ -34,8 +34,8 @@ class CapacityLedger:
             zone = path[i]
             if not (zone.is_start or zone.is_end):
                 smallest = min(smallest, self.zone_remaining[zone])
-                key = frozenset({path[i].name, path[i + 1].name})
-                smallest = min(smallest, self.link_remaining[key])
+            key = frozenset({path[i].name, path[i + 1].name})
+            smallest = min(smallest, self.link_remaining[key])
         return smallest
 
     def consume(self, path: List[Zone], amount: float) -> None:
@@ -43,12 +43,14 @@ class CapacityLedger:
             zone = path[i]
             if not (zone.is_start or zone.is_end):
                 self.zone_remaining[zone] -= amount
-                key = frozenset({path[i].name, path[i + 1].name}) 
-                self.link_remaining[key] -= amount
+            key = frozenset({path[i].name, path[i + 1].name}) 
+            self.link_remaining[key] -= amount
 
 
 def dijkstra(graph: Graph, can_traverse: Optional[Callable[[Zone, Zone], bool]] = None, start_zone: Optional[Zone] = None) -> Optional[Tuple[List[Zone], float]]:
-    origin = start_zone if start_zone is not None else graph.start
+    origin = graph.start
+    if origin.cost is None:
+        return None
 
     dist: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
     priority_score: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
@@ -162,8 +164,7 @@ class RoutePlanner:
             
         assignments: List[List[Zone]] = []
         quotas_left = quotas.copy()
-        
-        # Interleave (Round-Robin) the path assignments to prevent bottleneck congestion
+
         while len(assignments) < nb_drones:
             for idx, (path, _, _) in enumerate(sorted_paths):
                 if quotas_left[idx] > 0:
