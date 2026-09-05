@@ -36,7 +36,6 @@ class CapacityLedger:
                 smallest = min(smallest, self.zone_remaining[zone])
                 key = frozenset({path[i].name, path[i + 1].name})
                 smallest = min(smallest, self.link_remaining[key])
-        print(smallest)
         return smallest
 
     def consume(self, path: List[Zone], amount: float) -> None:

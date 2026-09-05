@@ -7,6 +7,7 @@ class Simulation:
 
     def __init__(self, graph: Graph, nb_drones: int) -> None:
         self.graph = graph
+        self.connection_list: List = []
         planner = RoutePlanner()
 
         found_paths = planner.discover_paths(graph, nb_drones)
@@ -28,6 +29,15 @@ class Simulation:
             if to_zone is None:
                 continue
 
+
+            current_zone = drone.current_zone
+            next_zone = drone.path[drone.step_index + 1]
+
+            connection = self.graph.get_connection(current_zone, next_zone)
+            connection_revers = self.graph.get_connection(next_zone, current_zone)
+
+            connection.occupancy += 1
+            connection_revers.occupancy += 1
             to_zone.in_transit_count -= 1
             if not to_zone.is_end:
                 to_zone.occupancy += 1
@@ -46,7 +56,6 @@ class Simulation:
                 drone.delivered = True
 
     def move_normal_drones(self, moves: List, moved_this_turn: Set):
-        connection_list: List = []
         for drone in self.drones:
             if (drone.delivered or drone.in_transit or drone.id in moved_this_turn):
                 continue
@@ -60,11 +69,10 @@ class Simulation:
 
             connection = self.graph.get_connection(current_zone, next_zone)
             connection_revers = self.graph.get_connection(next_zone, current_zone)
-            # print(f"              {drone.id}    ")
             if connection.is_movable() and next_zone.has_capacity():
                 connection.occupancy += 1
                 connection_revers.occupancy += 1
-                connection_list.extend([connection, connection_revers])
+                self.connection_list.extend([connection, connection_revers])
 
                 if next_zone.type == "restricted":
                     if not current_zone.is_start:
@@ -89,8 +97,6 @@ class Simulation:
                 moved_this_turn.add(drone.id)
             else:
                 drone.turns_waited += 1
-        for connection in connection_list:
-            connection.occupancy = 0
 
     def run(self) -> List[str]:
         lines: List[str] = []
@@ -99,6 +105,7 @@ class Simulation:
         turn = 0
 
         while any(not drone.delivered for drone in self.drones):
+            self.connecion_list = []
             turn += 1
             if turn > max_turns:
                 raise RuntimeError(
@@ -109,6 +116,8 @@ class Simulation:
 
             self.move_transit_drones(moves, moved_this_turn)
             self.move_normal_drones(moves, moved_this_turn)
+            for connection in self.connection_list:
+                        connection.occupancy = 0
 
             if moves:
                 lines.append(" ".join(moves))
