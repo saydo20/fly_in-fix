@@ -28,7 +28,7 @@ class Zone:
         self.is_start = line_type == LineType.START_HUB
         self.is_end = line_type == LineType.END_HUB
         self.type = metadata["zone"]
-        self.color = metadata["color"]
+        self.color = metadata.get("color")
         self.max_drones: Optional[int] = (float('inf') if (self.is_start or self.is_end) else metadata["max_drones"])
         self.occupancy = 0
         self.in_transit_count = 0
@@ -132,6 +132,11 @@ class Graph:
         for zone, connections in self.adjacency.items():
             neighbors = ", ".join(c.destination.name for c in connections)
             print(f"{zone.name} => {neighbors}")
+
+    def get_zone_colors(self) -> Dict[str, str]:
+        return {
+            zone_name: zone.color for zone_name, zone in self.zones.items() if zone.color is not None
+        }
 
 
 class Drone:

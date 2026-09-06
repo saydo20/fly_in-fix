@@ -1,7 +1,44 @@
-from typing import List, Set
+from typing import List, Set, Dict
 from models import Graph, Drone
 from pathfinder import RoutePlanner
+from rich.console import Console
+from colors import Color
 
+console = Console()
+
+def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
+    for line in lines:
+        if line.startswith("number of turns"):
+            console.print(line)
+            continue
+
+        formatted_moves = []
+        moves = line.split(" ")
+
+        for move in moves:
+            parts = move.split("-")
+            
+            if len(parts) >= 2:
+                drone_id = parts[0]
+                colored_parts = [drone_id]
+                
+                for zone_name in parts[1:]:
+                    color = zone_colors.get(zone_name)
+                    
+                    if color:
+                        safe_color = Color.get_safe_color_tag(color)
+                        if safe_color:
+                            colored_parts.append(f"[{safe_color}]{zone_name}[/]")
+                        else:
+                            colored_parts.append(zone_name)
+                    else:
+                        colored_parts.append(zone_name)
+                
+                formatted_moves.append("-".join(colored_parts))
+            else:
+                formatted_moves.append(move)
+
+        console.print(" ".join(formatted_moves))
 
 class Simulation:
 
