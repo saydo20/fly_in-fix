@@ -1,6 +1,5 @@
 import re
 from typing import Dict, List, Optional, Tuple
-
 from models import Graph, LineType, ParseError, Zone
 
 NB_DRONES = re.compile(
@@ -9,8 +8,7 @@ NB_DRONES = re.compile(
 
 METADATA = re.compile(
     r"^\["
-    r"([A-Za-z_]\w*=[^\s\]]+)"
-    r"(?:\s+[A-Za-z_]\w*=[^\s\]]+)*"
+    r"(?:\s*[A-Za-z_]\w*=[^\s\]]+)*"
     r"\]$"
 )
 
@@ -21,7 +19,7 @@ class Parser:
         self.graph = Graph()
 
     def classify(self, line: str) -> Optional[LineType]:
-        for line_type in sorted(LineType, key=lambda e: len(e.value), reverse=True):
+        for line_type in LineType:
             if line.startswith(line_type.value):
                 return line_type
         return None
@@ -38,7 +36,7 @@ class Parser:
 
             if key == "zone":
                 if value not in allowed_zone_types:
-                    valid = ", ".join(sorted(allowed_zone_types))
+                    valid = ", ".join(allowed_zone_types)
                     raise ParseError(line_number, f"invalid zone type '{value}', expected one of: {valid}")
                 result[key] = value
 
@@ -51,7 +49,7 @@ class Parser:
                 try:
                     parsed = int(value)
                 except ValueError:
-                    raise ParseError(line_number, f"max_drones must be a positive integer, got '{value}'")
+                    raise ParseError(line_number, f"max_drones must be an integer, got '{value}'")
                 if parsed <= 0:
                     raise ParseError(line_number, f"max_drones must be a positive integer, got '{value}'")
                 result[key] = parsed
@@ -84,18 +82,17 @@ class Parser:
             if start_idx != -1:
                 block = text_stripped[start_idx:]
                 inner = block[1:-1].strip()
+    
+                if not re.fullmatch(METADATA, block):
+                    raise ParseError(line_number, "invalid metadata format")
 
-                if "=" in inner or " " in inner or "\t" in inner:
-                    if not re.fullmatch(METADATA, block):
-                        raise ParseError(line_number, "invalid metadata format")
+                for token in inner.split():
+                    key, value = token.split("=", 1)
+                    if key in metadata:
+                        raise ParseError(line_number, f"duplicate metadata key: '{key}'")
+                    metadata[key] = value
 
-                    for token in inner.split():
-                        key, value = token.split("=", 1)
-                        if key in metadata:
-                            raise ParseError(line_number, f"duplicate metadata key: '{key}'")
-                        metadata[key] = value
-
-                    return metadata, text_stripped[:start_idx].strip()
+                return metadata, text_stripped[:start_idx].strip()
                     
         return metadata, text_stripped
 
@@ -145,7 +142,7 @@ class Parser:
         if prefix != "connection":
             raise ParseError(line_number, "invalid format")
 
-        if not re.fullmatch(r"[^\s-]+-[^\s-]+", parts[1]):
+        if not re.fullmatch(r"[^\s-]+-[^\s-]+$", parts[1]):
             raise ParseError(line_number, "the connection must be exactly in this format: zone1-zone2")
         name1, name2 = parts[1].split("-")
 
