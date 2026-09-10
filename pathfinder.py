@@ -2,106 +2,6 @@ import heapq
 from typing import Dict, List, Optional, Tuple, Callable
 from models import Graph, Zone
 
-# def dijkstra(graph: Graph, can_traverse: Optional[Callable[[Zone, Zone], bool]] = None) -> Optional[Tuple[List[Zone], float]]:
-#     origin = graph.start
-#     if origin.cost is None:
-#         return None
-
-#     dist: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
-#     priority_score: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
-#     previous: Dict[Zone, Optional[Zone]] = {zone: None for zone in graph.zones.values()}
-#     visited: Dict[Zone, bool] = {zone: False for zone in graph.zones.values()}
-
-#     dist[origin] = 0
-#     priority_score[origin] = 0
-#     pq = [(0, 0, origin.name, origin)]
-
-#     while pq:
-#         d, p, _, u = heapq.heappop(pq)
-#         if visited[u]:
-#             continue
-#         visited[u] = True
-#         if u is graph.end:
-#             break
-
-#         for connection in graph.adjacency[u]:
-#             v = connection.destination
-#             weight = v.cost
-#             if weight is None:
-#                 continue
-#             if visited[v]:
-#                 continue
-#             if can_traverse is not None and not can_traverse(u, v):
-#                 continue
-
-#             new_cost = d + weight
-#             new_score = p + (0 if v.type == "priority" else 1)
-#             if (new_cost, new_score) < (dist[v], priority_score[v]):
-#                 dist[v] = new_cost
-#                 priority_score[v] = new_score
-#                 previous[v] = u
-#                 heapq.heappush(pq, (new_cost, new_score, v.name, v))
-
-#     if dist[graph.end] == float("inf"):
-#         return None
-
-#     path: List[Zone] = []
-#     current: Optional[Zone] = graph.end
-#     while current is not None:
-#         path.append(current)
-#         current = previous[current]
-#     path.reverse()
-
-#     return path, dist[graph.end]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CapacityLedger:
     def __init__(self) -> None:
         self.zone_remaining: Dict[Zone, float] = {}
@@ -145,17 +45,19 @@ class CapacityLedger:
             key = frozenset({path[i].name, path[i + 1].name}) 
             self.link_remaining[key] -= amount
 
-def dijkstra(graph: Graph, can_traverse: Callable):
-    dist = {zone: float('inf') for zone in graph.zones.values()}
-    property_score = {zone: float('inf') for zone in graph.zones.values()}
-    visited = {zone: False for zone in graph.zones.values()}
-    previos = {zone: None for zone in graph.zones.values()}
-
+def dijkstra(graph: Graph, can_traverse: Callable = None) -> Optional[Tuple[List[Zone], float]]:
     origin = graph.start
-    property_score[origin] = 0  
-    dist[origin] = 0
+    if origin.cost is None:
+        return None
 
-    pq = [(0,0, origin.name, origin)]
+    dist: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
+    priority_score: Dict[Zone, float] = {zone: float("inf") for zone in graph.zones.values()}
+    previous: Dict[Zone, Optional[Zone]] = {zone: None for zone in graph.zones.values()}
+    visited: Dict[Zone, bool] = {zone: False for zone in graph.zones.values()}
+
+    dist[origin] = 0
+    priority_score[origin] = 0
+    pq = [(0, 0, origin.name, origin)]
 
     while pq:
         d, p, _, u = heapq.heappop(pq)
@@ -176,13 +78,24 @@ def dijkstra(graph: Graph, can_traverse: Callable):
                 continue
 
             new_cost = d + weight
-            new_priority = p + (0 if v.type is "property" else 1)
-            if (new_cost, new_priority) < (dist[v], property_score[v]):
+            new_score = p + (0 if v.type == "priority" else 1)
+            if (new_cost, new_score) < (dist[v], priority_score[v]):
                 dist[v] = new_cost
-                property_score[v] = new_priority
-                previos[v] = u
-                heapq.heappush(pq, (new_cost, new_priority, v.name, v))
-    return dist
+                priority_score[v] = new_score
+                previous[v] = u
+                heapq.heappush(pq, (new_cost, new_score, v.name, v))
+
+    if dist[graph.end] == float("inf"):
+        return None
+
+    path: List[Zone] = []
+    current: Optional[Zone] = graph.end
+    while current is not None:
+        path.append(current)
+        current = previous[current]
+    path.reverse()
+
+    return path, dist[graph.end]
 
 
 class Pathfinder:
