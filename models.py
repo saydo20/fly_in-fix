@@ -21,7 +21,10 @@ class LineType(Enum):
 
 
 class Zone:
-    def __init__(self, name: str, x_y: Tuple[int, int], line_type: LineType, metadata: Dict[str, object]) -> None:
+    def __init__(
+            self, name: str, x_y: Tuple[int, int],
+            line_type: LineType, metadata: Dict[str, object]
+    ) -> None:
         self.name = name
         self.x_y = x_y
         self.line_type = line_type
@@ -29,7 +32,9 @@ class Zone:
         self.is_end = line_type == LineType.END_HUB
         self.type = metadata.get("zone")
         self.color = metadata.get("color")
-        self.max_drones: Optional[int] = (float('inf') if (self.is_start or self.is_end) else metadata["max_drones"])
+        self.max_drones: Optional[int] = (float('inf')if
+                                          (self.is_start or self.is_end)
+                                          else metadata["max_drones"])
         self.occupancy = 0
         self.in_transit_count = 0
         self.cost = 1
@@ -38,11 +43,10 @@ class Zone:
         elif self.type == "blocked":
             self.cost = None
 
-
     def has_capacity(self) -> bool:
         if self.is_start or self.is_end:
             return True
-            
+
         return (self.occupancy + self.in_transit_count) < self.max_drones
 
 
@@ -63,9 +67,13 @@ class Graph:
         self.start: Optional[Zone] = None
         self.end: Optional[Zone] = None
 
-    def add_zone(self, zone: Zone, line_number: int, line_type: LineType) -> None:
+    def add_zone(
+            self, zone: Zone, line_number: int, line_type: LineType
+    ) -> None:
         if zone.name in self.zones:
-            raise ParseError(line_number, f'Zone "{zone.name}" already exists.')
+            raise ParseError(
+                line_number, f'Zone "{zone.name}" already exists.'
+            )
         self.zones[zone.name] = zone
         self.adjacency[zone] = []
         if line_type == LineType.START_HUB:
@@ -77,17 +85,23 @@ class Graph:
                 raise ParseError(line_number, "Only one end_hub is allowed.")
             self.end = zone
 
-    def add_connection(self, zone1: Zone, zone2: Zone, line_number: int, max_link_capacity) -> None:
+    def add_connection(
+            self, zone1: Zone, zone2: Zone, line_number: int, max_link_capacity
+    ) -> None:
         for connection in self.adjacency[zone1]:
             if connection.destination is zone2:
-                raise ParseError(line_number, f'Connection "{zone1.name}-{zone2.name}" already exists.')
+                raise ParseError(
+                    line_number,
+                    f'Connection "{zone1.name}-{zone2.name}" already exists.'
+                )
 
         self.adjacency[zone1].append(Connection(zone2, max_link_capacity))
         self.adjacency[zone2].append(Connection(zone1, max_link_capacity))
 
     def validate(self) -> None:
         if self.start is None:
-            raise ParseError(None, "no start_hub zone was defined in the file.")
+            raise ParseError(None,
+                             "no start_hub zone was defined in the file.")
         if self.end is None:
             raise ParseError(None, "no end_hub zone was defined in the file.")
 
@@ -95,11 +109,14 @@ class Graph:
         for connection in self.adjacency[zone1]:
             if connection.destination == zone2:
                 return connection
-        raise ValueError(f"no connection between '{zone1.name}' and '{zone2.name}'")
+        raise ValueError(
+            f"no connection between '{zone1.name}' and '{zone2.name}'"
+        )
 
     def get_zone_colors(self) -> Dict[str, str]:
         return {
-            zone_name: zone.color for zone_name, zone in self.zones.items() if zone.color is not None
+            zone_name: zone.color for zone_name, zone in self.zones.items()
+            if zone.color is not None
         }
 
 

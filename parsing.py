@@ -12,6 +12,7 @@ METADATA = re.compile(
     r"\]$"
 )
 
+
 class Parser:
     def __init__(self, arg: List[str]) -> None:
         self.arg = arg
@@ -24,8 +25,14 @@ class Parser:
                 return line_type
         return None
 
-    def metadata_validation(self, line_number: int, line_type: LineType, metadata: Dict[str, str]) -> Dict[str, object]:
-        result: Dict[str, object] = {"zone": "normal", "color": None, "max_drones": 1}
+    def metadata_validation(
+            self, line_number: int,
+            line_type: LineType,
+            metadata: Dict[str, str]
+    ) -> Dict[str, object]:
+        result: Dict[str, object] = {"zone": "normal",
+                                     "color": None,
+                                     "max_drones": 1}
         allowed_zone_types = {"normal", "blocked", "restricted", "priority"}
         allowed_keys = {"zone", "color", "max_drones"}
         is_start_or_end = line_type in (LineType.START_HUB, LineType.END_HUB)
@@ -37,7 +44,8 @@ class Parser:
             if key == "zone":
                 if value not in allowed_zone_types:
                     valid = ", ".join(allowed_zone_types)
-                    raise ParseError(line_number, f"invalid zone type '{value}', expected one of: {valid}")
+                    raise ParseError(line_number, "invalid zone type"
+                                     f"'{value}', expected one of: {valid}")
                 result[key] = value
 
             elif key == "color":
@@ -49,14 +57,21 @@ class Parser:
                 try:
                     parsed = int(value)
                 except ValueError:
-                    raise ParseError(line_number, f"max_drones must be an integer, got '{value}'")
+                    raise ParseError(
+                        line_number, "max_drones must be an integer,"
+                        f" got '{value}'")
                 if parsed <= 0:
-                    raise ParseError(line_number, f"max_drones must be a positive integer, got '{value}'")
+                    raise ParseError(line_number, "max_drones must be a "
+                                     f"positive integer, got '{value}'")
                 result[key] = parsed
 
         return result
 
-    def metadata_validation_connection(self, line_number: int, metadata: Dict[str, str]) -> Dict[str, int]:
+    def metadata_validation_connection(
+            self,
+            line_number: int,
+            metadata: Dict[str, str]
+    ) -> Dict[str, int]:
         result = {"max_link_capacity": 1}
         allowed_keys = {"max_link_capacity"}
 
@@ -66,14 +81,20 @@ class Parser:
             try:
                 parsed = int(value)
             except ValueError:
-                raise ParseError(line_number, f"max_link_capacity must be a positive integer, got '{value}'")
+                raise ParseError(line_number,
+                                 "max_link_capacity must be a "
+                                 f"positive integer, got '{value}'")
             if parsed <= 0:
-                raise ParseError(line_number, f"max_link_capacity must be a positive integer, got '{value}'")
+                raise ParseError(line_number, "max_link_capacity must be a "
+                                 f"positive integer, got '{value}'")
             result[key] = parsed
 
         return result
 
-    def parse_metadata(self, line_number: int, text: str) -> Tuple[Dict[str, str], str]:
+    def parse_metadata(self,
+                       line_number: int,
+                       text: str
+                       ) -> Tuple[Dict[str, str], str]:
         metadata: Dict[str, str] = {}
         text_stripped = text.strip()
 
@@ -82,18 +103,19 @@ class Parser:
             if start_idx != -1:
                 block = text_stripped[start_idx:]
                 inner = block[1:-1].strip()
-    
+
                 if not re.fullmatch(METADATA, block):
                     raise ParseError(line_number, "invalid metadata format")
 
                 for token in inner.split():
                     key, value = token.split("=", 1)
                     if key in metadata:
-                        raise ParseError(line_number, f"duplicate metadata key: '{key}'")
+                        raise ParseError(line_number,
+                                         f"duplicate metadata key: '{key}'")
                     metadata[key] = value
 
                 return metadata, text_stripped[:start_idx].strip()
-                    
+
         return metadata, text_stripped
 
     def parse_drone_count(self, line_number: int, text: str) -> int:
@@ -105,9 +127,15 @@ class Parser:
             raise ParseError(line_number, "the drone count must be positive")
         return drones
 
-    def parse_zone(self, line_number: int, line_type: LineType, text: str) -> List:
+    def parse_zone(self,
+                   line_number: int,
+                   line_type: LineType,
+                   text: str
+                   ) -> List:
         metadata_raw, text = self.parse_metadata(line_number, text)
-        metadata = self.metadata_validation(line_number, line_type, metadata_raw)
+        metadata = self.metadata_validation(
+            line_number, line_type, metadata_raw
+        )
 
         parts = text.split()
         if len(parts) != 4:
@@ -132,7 +160,9 @@ class Parser:
 
     def parse_connection(self, line_number: int, text: str) -> List:
         metadata_raw, text = self.parse_metadata(line_number, text)
-        metadata = self.metadata_validation_connection(line_number, metadata_raw)
+        metadata = self.metadata_validation_connection(
+            line_number, metadata_raw
+        )
 
         parts = text.split()
         if len(parts) != 2:
@@ -143,7 +173,9 @@ class Parser:
             raise ParseError(line_number, "invalid format")
 
         if not re.fullmatch(r"[^\s-]+-[^\s-]+$", parts[1]):
-            raise ParseError(line_number, "the connection must be exactly in this format: zone1-zone2")
+            raise ParseError(line_number,
+                             "the connection must be exactly in"
+                             " this format: zone1-zone2")
         name1, name2 = parts[1].split("-")
 
         return ["connection", name1, name2, metadata]
@@ -165,21 +197,37 @@ class Parser:
 
                     line_type = self.classify(content)
                     if line_type is None:
-                        raise ParseError(line_number, f"unrecognized line: '{content}'")
+                        raise ParseError(line_number,
+                                         f"unrecognized line: '{content}'")
 
                     if not seen_first_line:
                         if line_type != LineType.DRONE_COUNT:
-                            raise ParseError(line_number, "the first line must declare 'nb_drones'.")
+                            raise ParseError(
+                                line_number, "the first line must declare "
+                                "'nb_drones'.")
                         seen_first_line = True
 
                     if line_type == LineType.DRONE_COUNT:
                         if self.nb_drones is not None:
-                            raise ParseError(line_number, "nb_drones must be declared exactly once.")
-                        self.nb_drones = self.parse_drone_count(line_number, content)
+                            raise ParseError(
+                                line_number, "nb_drones must be declared"
+                                " exactly once.")
+                        self.nb_drones = self.parse_drone_count(
+                            line_number, content
+                        )
 
-                    elif line_type in (LineType.START_HUB, LineType.HUB, LineType.END_HUB):
-                        zone_data = self.parse_zone(line_number, line_type, content)
-                        zone = Zone(zone_data[1], (zone_data[2], zone_data[3]), line_type, zone_data[4])
+                    elif line_type in (
+                        LineType.START_HUB, LineType.HUB, LineType.END_HUB
+                    ):
+                        zone_data = self.parse_zone(
+                            line_number, line_type, content
+                        )
+                        zone = Zone(
+                            zone_data[1],
+                            (zone_data[2],
+                             zone_data[3]),
+                            line_type,
+                            zone_data[4])
                         self.graph.add_zone(zone, line_number, line_type)
 
                     elif line_type == LineType.CONNECTION:
@@ -192,7 +240,9 @@ class Parser:
 
         for line_number, content in connection_lines:
             connection_data = self.parse_connection(line_number, content)
-            name1, name2, metadata = (connection_data[1], connection_data[2], connection_data[3])
+            name1, name2, metadata = (
+                connection_data[1], connection_data[2], connection_data[3]
+            )
 
             zone1 = self.graph.zones.get(name1)
             zone2 = self.graph.zones.get(name2)
@@ -200,6 +250,8 @@ class Parser:
                 raise ParseError(line_number, f'Unknown zone "{name1}".')
             if zone2 is None:
                 raise ParseError(line_number, f'Unknown zone "{name2}".')
-            self.graph.add_connection(zone1, zone2, line_number, metadata["max_link_capacity"])
+            self.graph.add_connection(
+                zone1, zone2, line_number, metadata["max_link_capacity"]
+            )
 
         self.graph.validate()

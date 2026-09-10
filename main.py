@@ -1,16 +1,14 @@
 import sys
-from parsing import Parser, ParseError
+from parsing import Parser
 from simulation import Simulation, print_colored_simulation
-from pathfinder import dijkstra
 
 
 def main() -> None:
     parser = Parser(sys.argv)
     parser.parsing()
-    sim = Simulation(parser.graph, parser.nb_drones)    
+    sim = Simulation(parser.graph, parser.nb_drones)
     parsed_colors = parser.graph.get_zone_colors()
     print_colored_simulation(sim.run(), parsed_colors)
-
 
 
 if __name__ == "__main__":

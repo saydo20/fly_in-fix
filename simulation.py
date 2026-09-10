@@ -6,6 +6,7 @@ from colors import Color
 
 console = Console()
 
+
 def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
     for line in lines:
         if line.startswith("number of turns"):
@@ -17,28 +18,31 @@ def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
 
         for move in moves:
             parts = move.split("-")
-            
+
             if len(parts) >= 2:
                 drone_id = parts[0]
                 colored_parts = [drone_id]
-                
+
                 for zone_name in parts[1:]:
                     color = zone_colors.get(zone_name)
-                    
+
                     if color:
                         safe_color = Color.get_safe_color_tag(color)
                         if safe_color:
-                            colored_parts.append(f"[{safe_color}]{zone_name}[/]")
+                            colored_parts.append(
+                                f"[{safe_color}]{zone_name}[/]"
+                            )
                         else:
                             colored_parts.append(zone_name)
                     else:
                         colored_parts.append(zone_name)
-                
+
                 formatted_moves.append("-".join(colored_parts))
             else:
                 formatted_moves.append(move)
 
         console.print(" ".join(formatted_moves))
+
 
 class Simulation:
 
@@ -55,7 +59,6 @@ class Simulation:
             for i, path in enumerate(assignments)
         ]
 
-
     def move_transit_drones(self, moves: List, moved_this_turn: Set):
         for drone in self.drones:
             if drone.delivered or not drone.in_transit:
@@ -66,12 +69,13 @@ class Simulation:
             if to_zone is None:
                 continue
 
-
             current_zone = drone.current_zone
             next_zone = drone.path[drone.step_index + 1]
 
             connection = self.graph.get_connection(current_zone, next_zone)
-            connection_revers = self.graph.get_connection(next_zone, current_zone)
+            connection_revers = self.graph.get_connection(
+                next_zone, current_zone
+            )
 
             connection.occupancy += 1
             connection_revers.occupancy += 1
@@ -94,7 +98,11 @@ class Simulation:
 
     def move_normal_drones(self, moves: List, moved_this_turn: Set):
         for drone in self.drones:
-            if (drone.delivered or drone.in_transit or drone.id in moved_this_turn):
+            if (
+                drone.delivered or
+                drone.in_transit or
+                drone.id in moved_this_turn
+            ):
                 continue
 
             if drone.step_index + 1 >= len(drone.path):
@@ -105,7 +113,9 @@ class Simulation:
             next_zone = drone.path[drone.step_index + 1]
 
             connection = self.graph.get_connection(current_zone, next_zone)
-            connection_revers = self.graph.get_connection(next_zone, current_zone)
+            connection_revers = self.graph.get_connection(
+                next_zone, current_zone
+            )
             if connection.is_movable() and next_zone.has_capacity():
                 connection.occupancy += 1
                 connection_revers.occupancy += 1
@@ -118,7 +128,8 @@ class Simulation:
                     drone.in_transit = True
                     drone.transit_from = current_zone
                     drone.transit_to = next_zone
-                    moves.append(f"{drone.id}-{current_zone.name}-{next_zone.name}")
+                    moves.append(f"{drone.id}-{current_zone.name}"
+                                 f"-{next_zone.name}")
                 else:
                     if not current_zone.is_start:
                         current_zone.occupancy -= 1
@@ -142,7 +153,6 @@ class Simulation:
         turn = 0
 
         while any(not drone.delivered for drone in self.drones):
-            self.connecion_list = []
             turn += 1
             if turn > max_turns:
                 raise RuntimeError(
@@ -154,7 +164,7 @@ class Simulation:
             self.move_transit_drones(moves, moved_this_turn)
             self.move_normal_drones(moves, moved_this_turn)
             for connection in self.connection_list:
-                        connection.occupancy = 0
+                connection.occupancy = 0
 
             if moves:
                 lines.append(" ".join(moves))
