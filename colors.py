@@ -4,6 +4,8 @@ from rich.style import Style
 
 
 class Color:
+    """Manage named color palettes and format conversion for display."""
+
     PALETTE = {
         "aliceblue": "#F0F8FF",
         "antiquewhite": "#FAEBD7",
@@ -150,6 +152,14 @@ class Color:
 
     @classmethod
     def get_safe_color_tag(cls, color: str) -> Optional[str]:
+        """Convert a color name or style string into a valid Rich color tag.
+
+        Args:
+            color: Color name or hex code to evaluate.
+
+        Returns:
+            A valid hex color string, rich style string, or None if invalid.
+        """
         clean_color = color.lower().strip()
 
         if clean_color in cls.PALETTE:

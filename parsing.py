@@ -14,12 +14,27 @@ METADATA = re.compile(
 
 
 class Parser:
+    """Parse and validate map files into graph and simulation structures."""
+
     def __init__(self, arg: List[str]) -> None:
+        """Initialize parser with command line arguments.
+
+        Args:
+            arg: List of command-line arguments (sys.argv).
+        """
         self.arg = arg
         self.nb_drones: Optional[int] = None
         self.graph = Graph()
 
     def classify(self, line: str) -> Optional[LineType]:
+        """Classify line prefix into corresponding LineType enum.
+
+        Args:
+            line: Raw text line to check.
+
+        Returns:
+            Matching LineType enum or None if unrecognized.
+        """
         for line_type in LineType:
             if line.startswith(line_type.value):
                 return line_type
@@ -30,6 +45,19 @@ class Parser:
             line_type: LineType,
             metadata: Dict[str, str]
     ) -> Dict[str, object]:
+        """Validate zone metadata keys and values against allowed rules.
+
+        Args:
+            line_number: Line number for error reporting.
+            line_type: Zone category prefix.
+            metadata: Dictionary of raw parsed key-value pairs.
+
+        Returns:
+            Dictionary with validated and typed metadata attributes.
+
+        Raises:
+            ParseError: If unknown key, invalid zone type, or bad max_drones.
+        """
         result: Dict[str, object] = {"zone": "normal",
                                      "color": None,
                                      "max_drones": 1}
@@ -72,6 +100,18 @@ class Parser:
             line_number: int,
             metadata: Dict[str, str]
     ) -> Dict[str, int]:
+        """Validate connection metadata keys and capacity values.
+
+        Args:
+            line_number: Line number for error reporting.
+            metadata: Dictionary of raw parsed key-value pairs.
+
+        Returns:
+            Dictionary with validated max_link_capacity.
+
+        Raises:
+            ParseError: If unknown key or non-positive capacity.
+        """
         result = {"max_link_capacity": 1}
         allowed_keys = {"max_link_capacity"}
 
@@ -95,6 +135,18 @@ class Parser:
                        line_number: int,
                        text: str
                        ) -> Tuple[Dict[str, str], str]:
+        """Extract and parse optional bracketed metadata from line text.
+
+        Args:
+            line_number: Line number for error reporting.
+            text: Line content potentially containing metadata brackets.
+
+        Returns:
+            Tuple containing parsed metadata dict and remaining line text.
+
+        Raises:
+            ParseError: If bracket format is malformed or duplicate keys found.
+        """
         metadata: Dict[str, str] = {}
         text_stripped = text.strip()
 
@@ -119,6 +171,18 @@ class Parser:
         return metadata, text_stripped
 
     def parse_drone_count(self, line_number: int, text: str) -> int:
+        """Parse the drone count from the nb_drones declaration line.
+
+        Args:
+            line_number: Line number for error reporting.
+            text: Raw text line declaring drone count.
+
+        Returns:
+            Positive integer number of drones.
+
+        Raises:
+            ParseError: If line format is invalid or count is non-positive.
+        """
         match = re.fullmatch(NB_DRONES, text)
         if not match:
             raise ParseError(line_number, "invalid nb_drones line")
@@ -132,6 +196,19 @@ class Parser:
                    line_type: LineType,
                    text: str
                    ) -> List:
+        """Parse a zone declaration line into its structural components.
+
+        Args:
+            line_number: Line number for error reporting.
+            line_type: Category prefix of the zone.
+            text: Raw line text describing the zone.
+
+        Returns:
+            List containing prefix, name, x, y, and validated metadata.
+
+        Raises:
+            ParseError: If syntax, coordinates, or name are invalid.
+        """
         metadata_raw, text = self.parse_metadata(line_number, text)
         metadata = self.metadata_validation(
             line_number, line_type, metadata_raw
@@ -159,6 +236,18 @@ class Parser:
         return [prefix, name, coords[0], coords[1], metadata]
 
     def parse_connection(self, line_number: int, text: str) -> List:
+        """Parse a connection declaration line linking two zones.
+
+        Args:
+            line_number: Line number for error reporting.
+            text: Raw line text describing the connection.
+
+        Returns:
+            List containing prefix, zone1 name, zone2 name, and metadata.
+
+        Raises:
+            ParseError: If syntax or connection format is invalid.
+        """
         metadata_raw, text = self.parse_metadata(line_number, text)
         metadata = self.metadata_validation_connection(
             line_number, metadata_raw
@@ -181,6 +270,12 @@ class Parser:
         return ["connection", name1, name2, metadata]
 
     def parsing(self) -> None:
+        """Read and parse the input map file, constructing the full graph.
+
+        Raises:
+            ParseError: If arguments are invalid, file cannot be read,
+                or syntax errors are present.
+        """
         if len(self.arg) != 2:
             raise ParseError(None, "usage: python3 main.py <map_file>")
 

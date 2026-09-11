@@ -8,6 +8,12 @@ console = Console()
 
 
 def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
+    """Print simulation output to console with zone colors applied.
+
+    Args:
+        lines: Simulation turn output lines.
+        zone_colors: Dictionary mapping zone names to color names.
+    """
     for line in lines:
         if line.startswith("number of turns"):
             console.print(line)
@@ -45,8 +51,15 @@ def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
 
 
 class Simulation:
+    """Discrete turn simulation engine coordinating fleet movements."""
 
     def __init__(self, graph: Graph, nb_drones: int) -> None:
+        """Initialize simulation, discover paths, and assign drones.
+
+        Args:
+            graph: Graph instance representing the map network.
+            nb_drones: Total count of drones to route and simulate.
+        """
         self.graph = graph
         self.connection_list: List = []
         planner = RoutePlanner()
@@ -60,6 +73,12 @@ class Simulation:
         ]
 
     def move_transit_drones(self, moves: List, moved_this_turn: Set):
+        """Advance drones currently in transit into restricted destination.
+
+        Args:
+            moves: Output list collecting turn movement strings.
+            moved_this_turn: Set of drone IDs already moved this turn.
+        """
         for drone in self.drones:
             if drone.delivered or not drone.in_transit:
                 continue
@@ -97,6 +116,12 @@ class Simulation:
                 drone.delivered = True
 
     def move_normal_drones(self, moves: List, moved_this_turn: Set):
+        """Advance waiting drones to normal zones or initiate transit.
+
+        Args:
+            moves: Output list collecting turn movement strings.
+            moved_this_turn: Set of drone IDs already moved this turn.
+        """
         for drone in self.drones:
             if (
                 drone.delivered or
@@ -147,6 +172,14 @@ class Simulation:
                 drone.turns_waited += 1
 
     def run(self) -> List[str]:
+        """Execute the discrete simulation loop until all drones are delivered.
+
+        Returns:
+            List of turn-by-turn movement lines and turn summary.
+
+        Raises:
+            RuntimeError: If simulation exceeds maximum turns (deadlock).
+        """
         lines: List[str] = []
 
         max_turns = len(self.graph.zones) * len(self.drones) * 10

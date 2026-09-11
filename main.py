@@ -4,6 +4,11 @@ from simulation import Simulation, print_colored_simulation
 
 
 def main() -> None:
+    """Execute drone pathfinding simulation from command-line arguments.
+
+    Parses the map file, initializes the simulation engine, and
+    outputs the colorized turn-by-turn drone movements.
+    """
     parser = Parser(sys.argv)
     parser.parsing()
     sim = Simulation(parser.graph, parser.nb_drones)
