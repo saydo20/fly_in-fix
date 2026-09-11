@@ -6,33 +6,6 @@ An optimal multi-agent drone routing and dispatch simulation built from scratch 
 
 ---
 
-## Table of Contents
-
-1. [Description](#description)
-2. [Features](#features)
-3. [Instructions](#instructions)
-   - [Prerequisites](#prerequisites)
-   - [Installation & Setup](#installation--setup)
-   - [Execution](#execution)
-   - [Makefile Targets](#makefile-targets)
-   - [Code Quality & Linting](#code-quality--linting)
-4. [Algorithm Choices & Implementation Strategy](#algorithm-choices--implementation-strategy)
-   - [Graph Architecture & Constraints](#graph-architecture--constraints)
-   - [Multi-Criteria Shortest Path (Custom Dijkstra)](#multi-criteria-shortest-path-custom-dijkstra)
-   - [Residual Capacity Ledger & Multi-Path Augmentation](#residual-capacity-ledger--multi-path-augmentation)
-   - [Proportional Fleet Allocation](#proportional-fleet-allocation)
-   - [Two-Phase Discrete-Turn Simulation Engine](#two-phase-discrete-turn-simulation-engine)
-5. [Visual Representation Features](#visual-representation-features)
-6. [Example Input and Expected Output](#example-input-and-expected-output)
-   - [Sample Map File](#sample-map-file)
-   - [Simulation Run & Output Breakdown](#simulation-run--output-breakdown)
-7. [Performance Benchmarks](#performance-benchmarks)
-8. [Resources](#resources)
-   - [References & Documentation](#references--documentation)
-   - [Use of Artificial Intelligence](#use-of-artificial-intelligence)
-
----
-
 ## Description
 
 **Fly-In** addresses a Multi-Agent Pathfinding (MAPF) and network flow problem under discrete-time execution. A fleet of $N$ drones must navigate an interconnected network of hubs while strictly respecting topological bottlenecks, zone capacities, movement costs, and simultaneous traversal rules.
@@ -204,8 +177,7 @@ When multiple paths have identical total movement costs, the algorithm automatic
 ### Residual Capacity Ledger & Multi-Path Augmentation
 Routing multiple drones down a single path creates bottlenecks when the path capacity is lower than the fleet size. To maximize throughput:
 - A `CapacityLedger` monitors the remaining capacity of intermediate zones (`zone_remaining`) and bidirectional connections (`link_remaining`).
-- For each path discovered by Dijkstra:
-  $$\text{bottleneck} = \min \left( \min_{z \in \text{path} \setminus \{\text{start}, \text{end}\}} \text{zone\_remaining}[z], \min_{e \in \text{edges}} \text{link\_remaining}[e] \right)$$
+- For each path discovered by Dijkstra
 - The path's bottleneck capacity is deducted from the ledger.
 - Dijkstra is repeatedly invoked on the residual network until the cumulative capacity across all discovered paths meets or exceeds the fleet size ($\sum \text{bottleneck} \ge \text{nb\_drones}$), or no additional paths remain.
 
@@ -305,27 +277,6 @@ number of turns is 6
 
 ---
 
-## Performance Benchmarks
-
-The algorithm was tested against the official benchmark suites across all difficulty tiers:
-
-| Map Difficulty | Map File | Drones | Target Benchmark | Actual Result | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Easy** | `01_linear_path.txt` | 2 | $\le 6$ turns | **6 turns** |  Target Met |
-| **Easy** | `02_simple_fork.txt` | 4 | $\le 8$ turns | **4 turns** |  Beats Target (+4) |
-| **Easy** | `03_basic_capacity.txt` | 4 | $\le 6$ turns | **4 turns** |  Beats Target (+2) |
-| **Medium** | `01_dead_end_trap.txt` | 5 | $\le 12$ turns | **8 turns** |  Beats Target (+4) |
-| **Medium** | `02_circular_loop.txt` | 6 | $\le 15$ turns | **15 turns** |  Target Met |
-| **Medium** | `03_priority_puzzle.txt` | 5 | $\le 12$ turns | **7 turns** |  Beats Target (+5) |
-| **Hard** | `01_maze_nightmare.txt` | 8 | $\le 30$ turns | **13 turns** |  Beats Target (+17) |
-| **Hard** | `02_capacity_hell.txt` | 12 | $\le 35$ turns | **16 turns** |  Beats Target (+19) |
-| **Hard** | `03_ultimate_challenge.txt` | 15 | $\le 45$ turns | **26 turns** |  Beats Target (+19) |
-| **Challenger** | `01_the_impossible_dream.txt` | 25 | Record: 45 turns | **67 turns** |  Solves complex challenge |
-
-*Note: All mandatory benchmarks (Easy, Medium, and Hard) are fully satisfied or significantly beaten by the route planner.*
-
----
-
 ## Resources
 
 ### References & Documentation
@@ -347,10 +298,8 @@ In accordance with 42 AI usage guidelines, artificial intelligence was incorpora
 
 1. **Parser Regex & Edge Case Validation**:
    - AI was used to help formulate and refine regular expressions (`NB_DRONES`, `METADATA`) in `parsing.py` to ensure exact compliance with map formatting and metadata syntax.
-   - Edge cases such as duplicate keys, negative numbers, and trailing whitespace handling were validated with AI assistance.
 
 2. **Algorithm Design & Heuristic Formulation**:
-   - AI was consulted during the design of the dual-objective tuple heuristic `(cost, priority_penalty)` in `pathfinder.py` to seamlessly bias Dijkstra towards `priority` zones without distorting actual path costs.
    - Conceptual ideas for network flow residual tracking (`CapacityLedger`) were brainstormed with AI to find an efficient greedy path augmentation technique compliant with the "no graph libraries" rule.
 
 3. **Color Palette Mapping**:
@@ -358,4 +307,3 @@ In accordance with 42 AI usage guidelines, artificial intelligence was incorpora
 
 4. **Code Review & Static Analysis**:
    - AI served as a rubber-ducking partner to identify potential race conditions in two-phase turn execution (differentiating in-transit vs normal drone advancement).
-   - Ensured clean typing hints and flake8/mypy conformance across all modules.
