@@ -303,7 +303,7 @@ class Parser:
                         seen_first_line = True
 
                     if line_type == LineType.DRONE_COUNT:
-                        if self.nb_drones is not -1:
+                        if self.nb_drones != -1:
                             raise ParseError(
                                 line_number, "nb_drones must be declared"
                                 " exactly once.")
