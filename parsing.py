@@ -280,13 +280,12 @@ class Parser:
             raise ParseError(None, "usage: python3 main.py <map_file>")
 
         file_path = self.arg[1]
-        connection_lines: List[Tuple[int, str]] = []
         seen_first_line = False
 
         try:
             with open(file_path, "r") as f:
                 for line_number, raw_line in enumerate(f, start=1):
-                    content = raw_line.strip()
+                    content = raw_line.strip().split("#")[0]
                     if not content or content.startswith("#"):
                         continue
 
@@ -326,27 +325,35 @@ class Parser:
                         self.graph.add_zone(zone, line_number, line_type)
 
                     elif line_type == LineType.CONNECTION:
-                        connection_lines.append((line_number, content))
+                        connection_data = self.parse_connection(
+                            line_number, content
+                        )
+                        name1, name2, metadata = (
+                            connection_data[1],
+                            connection_data[2],
+                            connection_data[3]
+                        )
+            
+                        zone1 = self.graph.zones.get(name1)
+                        zone2 = self.graph.zones.get(name2)
+                        if zone1 is None:
+                            raise ParseError(
+                                line_number, f'Unknown zone "{name1}".'
+                            )
+                        if zone2 is None:
+                            raise ParseError(
+                                line_number, f'Unknown zone "{name2}".'
+                            )
+                        self.graph.add_connection(
+                            zone1,
+                            zone2,
+                            line_number,
+                            metadata["max_link_capacity"]
+                        )
         except OSError as exc:
             raise ParseError(None, f"could not read file '{file_path}': {exc}")
 
         if self.nb_drones is None:
             raise ParseError(None, "missing required 'nb_drones' declaration.")
-
-        for line_number, content in connection_lines:
-            connection_data = self.parse_connection(line_number, content)
-            name1, name2, metadata = (
-                connection_data[1], connection_data[2], connection_data[3]
-            )
-
-            zone1 = self.graph.zones.get(name1)
-            zone2 = self.graph.zones.get(name2)
-            if zone1 is None:
-                raise ParseError(line_number, f'Unknown zone "{name1}".')
-            if zone2 is None:
-                raise ParseError(line_number, f'Unknown zone "{name2}".')
-            self.graph.add_connection(
-                zone1, zone2, line_number, metadata["max_link_capacity"]
-            )
 
         self.graph.validate()
