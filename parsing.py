@@ -23,7 +23,7 @@ class Parser:
             arg: List of command-line arguments (sys.argv).
         """
         self.arg = arg
-        self.nb_drones: Optional[int] = None
+        self.nb_drones: int = -1
         self.graph = Graph()
 
     def classify(self, line: str) -> Optional[LineType]:
@@ -303,7 +303,7 @@ class Parser:
                         seen_first_line = True
 
                     if line_type == LineType.DRONE_COUNT:
-                        if self.nb_drones is not None:
+                        if self.nb_drones is not -1:
                             raise ParseError(
                                 line_number, "nb_drones must be declared"
                                 " exactly once.")

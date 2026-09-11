@@ -7,7 +7,8 @@ from colors import Color
 console = Console()
 
 
-def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]):
+def print_colored_simulation(lines: List[str], zone_colors: Dict[str, str]
+                             ) -> None:
     """Print simulation output to console with zone colors applied.
 
     Args:
@@ -72,7 +73,7 @@ class Simulation:
             for i, path in enumerate(assignments)
         ]
 
-    def move_transit_drones(self, moves: List, moved_this_turn: Set):
+    def move_transit_drones(self, moves: List, moved_this_turn: Set) -> None:
         """Advance drones currently in transit into restricted destination.
 
         Args:
@@ -115,7 +116,7 @@ class Simulation:
             if drone.step_index == len(drone.path) - 1:
                 drone.delivered = True
 
-    def move_normal_drones(self, moves: List, moved_this_turn: Set):
+    def move_normal_drones(self, moves: List, moved_this_turn: Set) -> None:
         """Advance waiting drones to normal zones or initiate transit.
 
         Args:

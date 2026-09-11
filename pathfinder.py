@@ -78,7 +78,8 @@ class CapacityLedger:
             self.link_remaining[key] -= amount
 
 
-def dijkstra(graph: Graph, can_traverse: Callable = None
+def dijkstra(graph: Graph,
+             can_traverse: Optional[Callable[[Zone, Zone], bool]] = None
              ) -> Optional[Tuple[List[Zone], float]]:
     """Find shortest path from start to end with priority zone preference.
 
@@ -93,7 +94,9 @@ def dijkstra(graph: Graph, can_traverse: Callable = None
         Tuple containing the path list and total cost, or None if unreachable.
     """
     origin = graph.start
-    if origin.cost is None:
+    end = graph.end
+
+    if origin is None or end is None or origin.cost is None:
         return None
 
     dist: Dict[Zone, float] = {zone: float("inf")
@@ -113,7 +116,7 @@ def dijkstra(graph: Graph, can_traverse: Callable = None
         if visited[u]:
             continue
         visited[u] = True
-        if u is graph.end:
+        if u is end:
             break
 
         for connection in graph.adjacency[u]:
@@ -134,17 +137,17 @@ def dijkstra(graph: Graph, can_traverse: Callable = None
                 previous[v] = u
                 heapq.heappush(pq, (new_cost, new_score, v.name, v))
 
-    if dist[graph.end] == float("inf"):
+    if dist[end] == float("inf"):
         return None
 
     path: List[Zone] = []
-    current: Optional[Zone] = graph.end
+    current: Optional[Zone] = end
     while current is not None:
         path.append(current)
         current = previous[current]
     path.reverse()
 
-    return path, dist[graph.end]
+    return path, dist[end]
 
 
 class RoutePlanner:
@@ -193,7 +196,9 @@ class RoutePlanner:
 
         return found_paths
 
-    def assign_drones(self, found_paths, nb_drones: int) -> List[List[Zone]]:
+    def assign_drones(self,
+                      found_paths: List[Tuple[List[Zone], float, float]],
+                      nb_drones: int) -> List[List[Zone]]:
         """Allocate drones across discovered paths proportional to capacity.
 
         Args:

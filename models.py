@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 
 class ParseError(Exception):
@@ -52,14 +52,25 @@ class Zone:
         self.line_type = line_type
         self.is_start = line_type == LineType.START_HUB
         self.is_end = line_type == LineType.END_HUB
-        self.type = metadata.get("zone")
-        self.color = metadata.get("color")
-        self.max_drones: Optional[int] = (float('inf')if
-                                          (self.is_start or self.is_end)
-                                          else metadata["max_drones"])
+
+        type_val = metadata.get("zone")
+        self.type: Optional[str] = (
+            str(type_val) if type_val is not None else None
+        )
+
+        color_val = metadata.get("color")
+        self.color: Optional[str] = (
+            str(color_val) if color_val is not None else None
+        )
+
+        self.max_drones: Union[int, float] = (
+            float('inf') if (self.is_start or self.is_end)
+            else int(str(metadata["max_drones"]))
+        )
         self.occupancy = 0
         self.in_transit_count = 0
-        self.cost = 1
+        self.cost: Optional[int] = 1
+
         if self.type == "restricted":
             self.cost = 2
         elif self.type == "blocked":
@@ -80,7 +91,7 @@ class Zone:
 class Connection:
     """Represent an edge between adjacent zones and its capacity limit."""
 
-    def __init__(self, destination: Zone, max_link_capacity) -> None:
+    def __init__(self, destination: Zone, max_link_capacity: int) -> None:
         """Initialize a connection to a destination zone.
 
         Args:
@@ -91,7 +102,7 @@ class Connection:
         self.occupancy = 0
         self.max_link_capacity = max_link_capacity
 
-    def is_movable(self):
+    def is_movable(self) -> bool:
         """Check whether the link capacity allows another traversal.
 
         Returns:
@@ -139,7 +150,11 @@ class Graph:
             self.end = zone
 
     def add_connection(
-            self, zone1: Zone, zone2: Zone, line_number: int, max_link_capacity
+            self,
+            zone1: Zone,
+            zone2: Zone,
+            line_number: int,
+            max_link_capacity: int
     ) -> None:
         """Add a bidirectional connection between two zones.
 
