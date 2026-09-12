@@ -333,7 +333,7 @@ class Parser:
                             connection_data[2],
                             connection_data[3]
                         )
-            
+
                         zone1 = self.graph.zones.get(name1)
                         zone2 = self.graph.zones.get(name2)
                         if zone1 is None:
